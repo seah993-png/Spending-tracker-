@@ -44,6 +44,15 @@ h2{font-size:17px;margin:0;font-weight:700;letter-spacing:-.01em}
 .card-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px}
 .card-head .sub{font-size:13px;color:var(--muted)}
 
+.scroller{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:2px 16px 2px}
+.scroller::-webkit-scrollbar{display:none}
+.pill{flex:none;border:1.5px solid var(--line);background:transparent;border-radius:20px;padding:8px 14px;font-size:14px;font-weight:600;color:var(--muted);white-space:nowrap}
+.pill.on{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+.pill.add{border-style:dashed}
+.qchips{margin:10px -18px 2px;padding:2px 18px 8px}
+.qchip{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1.5px solid var(--line);background:transparent;border-radius:14px;padding:8px 12px;text-align:left;max-width:190px}
+.qchip .n{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:165px}
+.qchip .a{font-size:13px;color:var(--muted)}
 .banner{margin-top:8px;padding:12px 14px;border-radius:14px;background:var(--track);font-size:14px;color:var(--muted)}
 
 /* Month + hero */
@@ -193,7 +202,8 @@ nav.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1
 
   <!-- Spending tab -->
   <section class="tab" data-tab="spend">
-    <div class="monthbar">
+    <div class="scroller" id="scopes"></div>
+    <div class="monthbar" id="monthbar">
       <button class="arrow" id="prevM" aria-label="Previous month">‹</button>
       <button class="mtitle" id="mTitle" aria-label="Jump to this month">September 2026</button>
       <button class="arrow" id="nextM" aria-label="Next month">›</button>
@@ -207,6 +217,7 @@ nav.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1
           <button data-c="SGD">SGD</button><button data-c="MYR">MYR</button><button data-c="JPY">JPY</button>
         </div>
       </div>
+      <div class="delta" id="tripNote" style="margin-top:6px"></div>
     </div>
 
     <div class="card">
@@ -216,7 +227,7 @@ nav.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1
     </div>
 
     <div class="card trend">
-      <div class="card-head"><h2>Month to month</h2><span class="sub num" id="avgLabel"></span></div>
+      <div class="card-head"><h2 id="trendTitle">Month to month</h2><span class="sub num" id="avgLabel"></span></div>
       <div id="trend"></div>
       <div class="keys" id="keys"></div>
     </div>
@@ -226,7 +237,7 @@ nav.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1
       <div id="list"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="recCard">
       <div class="card-head"><h2>Repeating monthly</h2><span class="sub num" id="recTotal"></span></div>
       <div id="recList"></div>
     </div>
@@ -294,6 +305,7 @@ nav.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
     <div class="grab"></div>
     <div class="sheet-top"><h2 id="sheetTitle">New expense</h2><button class="x" id="closeSheet" aria-label="Close">✕</button></div>
+    <div class="scroller qchips" id="fQuick" hidden></div>
     <div class="amount-row"><span class="sym" id="fSym">RM</span><input id="fAmount" inputmode="decimal" autocomplete="off" placeholder="0.00" aria-label="Amount"></div>
     <div class="hint num" id="fHint"></div>
     <div class="seg" id="fCur"><button data-c="MYR">RM Ringgit</button><button data-c="SGD">S$ SGD</button><button data-c="JPY">¥ Yen</button></div>
@@ -302,11 +314,33 @@ nav.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1
       <div><div class="rt">Repeat monthly</div><div class="rs" id="fRepeatSub">Adds itself every month</div></div>
       <label class="switch"><input type="checkbox" id="fRepeat" aria-label="Repeat monthly"><span></span></label>
     </div>
+    <div class="repeat" id="fTripRow" hidden>
+      <div><div class="rt" id="fTripName">Part of the trip</div><div class="rs" id="fTripSub">Kept out of your monthly totals</div></div>
+      <label class="switch"><input type="checkbox" id="fTrip" aria-label="Part of this trip"><span></span></label>
+    </div>
     <label class="field"><span>Date</span><input type="date" id="fDate"></label>
     <label class="field"><span>Note (optional)</span><input id="fNote" maxlength="80" placeholder="e.g. Grab to campus" autocomplete="off"></label>
     <button class="primary" id="fSave">Save expense</button>
     <button class="danger" id="fDelete" hidden>Delete expense</button>
     <p class="del-note" id="fDelNote" hidden>Deleting removes this month only. To stop future months, turn off Repeat monthly and save.</p>
+  </div>
+</div>
+
+<div class="sheet-wrap" id="tripSheet" hidden>
+  <div class="backdrop" id="tBackdrop"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="tripTitle">
+    <div class="grab"></div>
+    <div class="sheet-top"><h2 id="tripTitle">New trip</h2><button class="x" id="closeTrip" aria-label="Close">✕</button></div>
+    <label class="field"><span>Name</span><input id="tName" maxlength="40" placeholder="e.g. Japan trip" autocomplete="off"></label>
+    <label class="field"><span>First day</span><input type="date" id="tStart"></label>
+    <label class="field"><span>Last day</span><input type="date" id="tEnd"></label>
+    <div class="repeat">
+      <div><div class="rt">Keep out of monthly totals</div><div class="rs">Stops the trip from skewing your month-to-month chart</div></div>
+      <label class="switch"><input type="checkbox" id="tHidden" checked aria-label="Keep out of monthly totals"><span></span></label>
+    </div>
+    <button class="primary" id="tSave">Save trip</button>
+    <button class="danger" id="tDelete" hidden>Delete trip</button>
+    <p class="del-note" id="tDelNote" hidden>Expenses are kept. They go back into your monthly totals.</p>
   </div>
 </div>
 
@@ -363,6 +397,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const S = {
   expenses: load('expenses', []),
   recurring: load('recurring', []),
+  trips:     load('trips', []),
   rates:    load('rates', DEFAULT_RATES),
   display:  load('display', 'SGD'),
   lastCur:  load('lastCur', 'MYR'),
@@ -374,6 +409,8 @@ const S = {
 };
 if(!Array.isArray(S.expenses)) S.expenses = [];
 if(!Array.isArray(S.recurring)) S.recurring = [];
+if(!Array.isArray(S.trips)) S.trips = [];
+S.view = 'month';
 S.recurring.forEach(r => { if(!Array.isArray(r.skips)) r.skips = []; });
 if(!S.rates || !S.rates.rates || !(S.rates.rates.MYR > 0) || !(S.rates.rates.JPY > 0)) S.rates = DEFAULT_RATES;
 if(!CUR[S.display]) S.display = 'SGD';
@@ -411,6 +448,28 @@ const recOf = e => e && e.recurId ? S.recurring.find(r => r.id === e.recurId) : 
 const occDate = (r, ym) => `${ym}-${pad(Math.min(r.day, daysIn(ym)))}`;
 const hasOcc = (r, ym) => S.expenses.some(e => e.recurId === r.id && e.date.slice(0,7) === ym);
 
+/* ---------- Trips ---------- */
+const saveTrips = () => save('trips', S.trips);
+const tripById = id => S.trips.find(t => t.id === id) || null;
+const autoTrip = date => S.trips.find(t => date >= t.start && date <= t.end) || null;
+// A trip tag is worked out from the date, unless the entry says otherwise ('' means "not this trip").
+function tripOf(e){
+  if(!e) return null;
+  if(e.trip === '') return null;
+  if(e.trip) return tripById(e.trip);
+  if(e.recurId) return null;
+  return autoTrip(e.date);
+}
+const tripList = t => S.expenses.filter(e => { const x = tripOf(e); return x && x.id === t.id; });
+// Entries that count towards a normal month
+const monthList = ym => inMonth(ym).filter(e => { const t = tripOf(e); return !t || !t.hidden; });
+const hiddenInMonth = ym => inMonth(ym).filter(e => { const t = tripOf(e); return t && t.hidden; });
+function dateSpan(a, b){
+  const [y1, m1, d1] = a.split('-').map(Number), [y2, m2, d2] = b.split('-').map(Number);
+  if(y1 === y2 && m1 === m2) return `${d1}–${d2} ${MON[m1-1]}`;
+  return `${d1} ${MON[m1-1]} – ${d2} ${MON[m2-1]}`;
+}
+
 /* ---------- Repeating expenses ---------- */
 // Adds any repeating expense whose day has arrived (uses the phone's date). Returns how many were added.
 function runRecurring(){
@@ -446,22 +505,90 @@ const entries = n => `${n} ${n === 1 ? 'entry' : 'entries'}`;
 
 /* ---------- Spending tab ---------- */
 function renderSpend(){
+  if(S.view !== 'month' && !tripById(S.view)) S.view = 'month';
+  const trip = S.view === 'month' ? null : tripById(S.view);
+  renderScopes();
+  $('#monthbar').hidden = !!trip;
+  $('#recCard').hidden = !!trip;
+  $$('#dispSeg button').forEach(b => b.classList.toggle('on', b.dataset.c === S.display));
+  if(trip) renderTripView(trip); else renderMonthView();
+  renderRecurring();
+}
+
+function renderScopes(){
+  const el = $('#scopes');
+  el.innerHTML = `<button class="pill${S.view === 'month' ? ' on' : ''}" data-scope="month">Monthly</button>` +
+    S.trips.map(t => `<button class="pill${S.view === t.id ? ' on' : ''}" data-scope="${esc(t.id)}">${esc(t.name)}</button>`).join('') +
+    `<button class="pill add" data-scope="new">+ Trip</button>`;
+}
+
+function renderTripView(trip){
+  const D = S.display, list = tripList(trip), t = total(list);
+  const days = Math.round((new Date(trip.end) - new Date(trip.start)) / 864e5) + 1;
+  $('#spentLabel').textContent = trip.name;
+  $('#total').textContent = fmt(fromSGD(t, D), D);
+  $('#delta').innerHTML = `${dateSpan(trip.start, trip.end)}, ${entries(list.length)} <button class="link" id="editTrip" style="font-size:14px;padding:2px 6px">Edit</button>`;
+  $('#tripNote').innerHTML = list.length ? `${fmt(fromSGD(t / days, D), D)} a day across ${days} days${trip.hidden ? ', kept out of monthly totals' : ''}` : '';
+  $('#trendTitle').textContent = 'Day by day';
+  renderDonut(list); renderTripChart(trip, list); renderList(list, trip);
+}
+
+function renderTripChart(trip, list){
+  const D = S.display, days = [];
+  for(let d = trip.start, g = 0; d <= trip.end && g < 120; g++){
+    const dt = new Date(d); dt.setDate(dt.getDate() + 1);
+    days.push(d); d = ds(dt);
+  }
+  const data = days.map(d => { const l = list.filter(e => e.date === d); return {d, t: byCat(l), tot: total(l)}; });
+  const cv = v => fromSGD(v, D);
+  const max = Math.max(0, ...data.map(x => cv(x.tot)));
+  const W = 336, H = 196, top = 20, bot = 30, ch = H - top - bot, slot = W / Math.max(days.length, 1);
+  const bw = Math.max(3, Math.min(22, slot * .62));
+  const every = Math.ceil(days.length / 7);
+  let defs = '', bars = '';
+  data.forEach((x, i) => {
+    const cx = slot * i + slot / 2, base = top + ch;
+    if(x.tot > 0 && max > 0){
+      const bh = Math.max(cv(x.tot) / max * ch, 2), by = base - bh;
+      defs += `<clipPath id="td${i}"><rect x="${(cx - bw/2).toFixed(2)}" y="${by.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" rx="${Math.min(4, bw/2).toFixed(1)}"/></clipPath>`;
+      let y = base, segs = '';
+      CATS.forEach(c => { const v = x.t[c.id]; if(v <= 0) return; const hh = v / x.tot * bh; y -= hh; segs += `<rect x="${(cx - bw/2).toFixed(2)}" y="${y.toFixed(2)}" width="${bw.toFixed(2)}" height="${(hh + .5).toFixed(2)}" fill="${c.color}"/>`; });
+      bars += `<g clip-path="url(#td${i})">${segs}</g>`;
+    } else bars += `<rect x="${(cx - bw/2).toFixed(2)}" y="${base - 2}" width="${bw.toFixed(2)}" height="2" rx="1" class="tr-zero"/>`;
+    if(i % every === 0) bars += `<text x="${cx.toFixed(1)}" y="${H - 10}" class="tr-m" text-anchor="middle">${+x.d.slice(8,10)} ${MON[+x.d.slice(5,7)-1]}</text>`;
+  });
+  const spent = data.filter(x => x.tot > 0);
+  if(spent.length >= 2 && max > 0){
+    const avg = spent.reduce((a, x) => a + cv(x.tot), 0) / spent.length;
+    bars = `<line x1="4" x2="${W-4}" y1="${(top + ch - avg / max * ch).toFixed(1)}" y2="${(top + ch - avg / max * ch).toFixed(1)}" class="tr-avg"/>` + bars;
+    $('#avgLabel').textContent = `Avg ${fmt(avg, D)} on days you spent`;
+  } else $('#avgLabel').textContent = '';
+  $('#trend').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending day by day"><defs>${defs}</defs>${bars}</svg>`;
+  $('#keys').innerHTML = CATS.map(c => `<span style="--c:${c.color}">${c.name}</span>`).join('');
+}
+
+function renderMonthView(){
   const ym = S.month, D = S.display, mi = ymIdx(ym);
+  $('#trendTitle').textContent = 'Month to month';
   $('#mTitle').textContent = `${MONL[mi]} ${ym.slice(0,4)}`;
-  const list = inMonth(ym), t = total(list);
+  const list = monthList(ym), t = total(list);
   $('#spentLabel').textContent = `Spent in ${MONL[mi]}`;
   $('#total').textContent = fmt(fromSGD(t, D), D);
 
-  const prev = shiftYM(ym, -1), pt = total(inMonth(prev));
+  const prev = shiftYM(ym, -1), pt = total(monthList(prev));
   let dh;
   if(t > 0 && pt > 0){
     const p = (t - pt) / pt * 100, up = p >= 0;
     dh = `<b class="${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(p).toFixed(0)}%</b> vs ${MONL[ymIdx(prev)]}`;
   } else dh = list.length ? entries(list.length) : 'Nothing logged yet';
   $('#delta').innerHTML = dh;
-  $$('#dispSeg button').forEach(b => b.classList.toggle('on', b.dataset.c === D));
+  const away = hiddenInMonth(ym), tripsShown = [...new Set(away.map(e => tripOf(e).id))];
+  $('#tripNote').innerHTML = tripsShown.map(id => {
+    const tr = tripById(id), sub = total(away.filter(e => tripOf(e).id === id));
+    return `<button class="link" data-scope="${esc(id)}" style="font-size:14px;padding:2px 0">${esc(tr.name)}: ${fmt(fromSGD(sub, D), D)} shown separately</button>`;
+  }).join('<br>');
 
-  renderDonut(list); renderTrend(); renderList(list); renderRecurring();
+  renderDonut(list); renderTrend(); renderList(list);
 }
 
 function renderRecurring(){
@@ -510,7 +637,7 @@ function renderDonut(list){
 function renderTrend(){
   const D = S.display, months = [];
   for(let i = 5; i >= 0; i--) months.push(shiftYM(S.month, -i));
-  const data = months.map(m => { const l = inMonth(m); return {m, t: byCat(l), tot: total(l)}; });
+  const data = months.map(m => { const l = monthList(m); return {m, t: byCat(l), tot: total(l)}; });
   const cv = v => fromSGD(v, D);
   const max = Math.max(0, ...data.map(d => cv(d.tot)));
   const W = 336, H = 196, top = 28, bot = 30, ch = H - top - bot, slot = W / 6, bw = Math.min(30, slot * .5);
@@ -557,10 +684,11 @@ function dayLabel(d){
   return `${DOW[dt.getDay()]}, ${dt.getDate()} ${MON[dt.getMonth()]}`;
 }
 
-function renderList(list){
+function renderList(list, trip){
   const D = S.display, el = $('#list');
   if(!list.length){
-    el.innerHTML = `<div class="empty"><div class="empty-i">🧾</div><p>No spending logged for ${MONL[ymIdx(S.month)]}.<br>Tap + to add an expense.</p>${S.expenses.length ? '' : '<button class="link" id="demoBtn">Load demo data to try it out</button>'}</div>`;
+    const what = trip ? `this trip yet` : `${MONL[ymIdx(S.month)]}`;
+    el.innerHTML = `<div class="empty"><div class="empty-i">🧾</div><p>No spending logged for ${what}.<br>Tap + to add an expense.</p>${S.expenses.length ? '' : '<button class="link" id="demoBtn">Load demo data to try it out</button>'}</div>`;
     return;
   }
   const groups = {};
@@ -602,19 +730,55 @@ function updHint(){
   const sgd = toSGD(a, c);
   $('#fHint').textContent = '≈ ' + Object.keys(CUR).filter(k => k !== c).map(k => fmt(fromSGD(sgd, k), k)).join('   or   ');
 }
+// Things you've logged before, so repeat purchases take two taps
+function quickPicks(){
+  const cut = ds(new Date(Date.now() - 90 * 864e5)), map = new Map();
+  S.expenses.filter(e => !e.recurId && e.date >= cut).forEach(e => {
+    const k = [e.category, e.currency, e.amount, (e.note || '').trim().toLowerCase()].join('|');
+    const m = map.get(k) || {n: 0, last: '', e};
+    m.n++; if(e.date >= m.last){ m.last = e.date; m.e = e; }
+    map.set(k, m);
+  });
+  return [...map.values()].sort((a, b) => b.n - a.n || (a.last < b.last ? 1 : -1)).slice(0, 8);
+}
+function renderQuick(){
+  const el = $('#fQuick'), picks = S.editing ? [] : quickPicks();
+  el.hidden = !picks.length;
+  el.innerHTML = picks.map((p, i) => {
+    const e = p.e, c = CAT[e.category] || CAT.others;
+    return `<button class="qchip" data-i="${i}"><span class="n">${c.icon} ${esc(e.note || c.name)}</span><span class="a num">${fmt(e.amount, e.currency)}</span></button>`;
+  }).join('');
+  el._picks = picks;
+}
+// Trip switch: on when the date falls inside a trip
+function updTripRow(){
+  const row = $('#fTripRow'), date = $('#fDate').value || today();
+  const e = S.editing ? S.expenses.find(x => x.id === S.editing) : null;
+  const t = (e && e.trip && tripById(e.trip)) || autoTrip(date);
+  row.hidden = !t;
+  if(!t){ S.fTrip = null; return; }
+  S.fTrip = t;
+  $('#fTripName').textContent = `Part of ${t.name}`;
+  $('#fTripSub').textContent = t.hidden ? 'Kept out of your monthly totals' : 'Tagged, and still counted monthly';
+  if(!S.tripTouched) $('#fTrip').checked = e ? !!tripOf(e) : true;
+}
 function resetDelete(){ const b = $('#fDelete'); b.classList.remove('arm'); b.textContent = 'Delete expense'; clearTimeout(b._t); }
 function openSheet(e){
   S.editing = e ? e.id : null;
   $('#sheetTitle').textContent = e ? 'Edit expense' : 'New expense';
   $('#fSave').textContent = e ? 'Save changes' : 'Save expense';
-  S.repeatTouched = false;
+  S.repeatTouched = false; S.tripTouched = false;
+  renderQuick();
   $('#fAmount').value = e ? String(e.amount) : '';
   setFCur(e ? e.currency : S.lastCur);
   setFCat(e ? e.category : S.lastCat);
   const r = recOf(e);
   if(e) $('#fRepeat').checked = !!(r && !r.endDate);
-  $('#fDate').value = e ? e.date : today();
-  updRepeatSub();
+  // Adding from a trip you're viewing? Start on a day inside that trip.
+  let d = today();
+  if(!e && S.view !== 'month'){ const tv = tripById(S.view); if(tv && (d < tv.start || d > tv.end)) d = d < tv.start ? tv.start : tv.end; }
+  $('#fDate').value = e ? e.date : d;
+  updRepeatSub(); updTripRow();
   $('#fNote').value = e ? (e.note || '') : '';
   $('#fDelete').hidden = !e; resetDelete();
   $('#fDelNote').hidden = !(r && !r.endDate);
@@ -640,6 +804,8 @@ function saveForm(){
       const changed = e.amount !== amt || e.currency !== cur;
       Object.assign(e, {amount: amt, currency: cur, category: cat, date, note});
       if(changed) e.sgd = toSGD(amt, cur);
+      if(S.fTrip && !$('#fTripRow').hidden) e.trip = $('#fTrip').checked ? S.fTrip.id : '';
+      else delete e.trip;
       const r = recOf(e);
       if(r){
         if(oldYM !== date.slice(0,7) && !r.skips.includes(oldYM)) r.skips.push(oldYM);
@@ -652,6 +818,8 @@ function saveForm(){
     }
   } else {
     const e = {id: uid(), created: Date.now(), date, amount: amt, currency: cur, category: cat, note, sgd: toSGD(amt, cur)};
+    const t = autoTrip(date);
+    if(t) e.trip = (!$('#fTripRow').hidden && !$('#fTrip').checked) ? '' : t.id;
     S.expenses.push(e);
     if(repeat) newTemplate(e);
   }
@@ -659,8 +827,37 @@ function saveForm(){
   save('lastCur', cur); save('lastCat', cat); saveRec();
   const filled = runRecurring(); persist();
   S.month = date.slice(0, 7);
+  const tagged = autoTrip(date) && $('#fTrip').checked && !$('#fTripRow').hidden;
+  if(S.view !== 'month' && !tagged) S.view = 'month';
   closeSheet(); renderSpend();
   toast((wasEdit ? 'Changes saved' : 'Expense saved') + (filled ? `, plus ${filled} earlier ${filled === 1 ? 'month' : 'months'}` : ''));
+}
+
+/* ---------- Trip sheet ---------- */
+let editingTrip = null;
+function openTrip(t){
+  editingTrip = t ? t.id : null;
+  $('#tripTitle').textContent = t ? 'Edit trip' : 'New trip';
+  $('#tName').value = t ? t.name : '';
+  $('#tStart').value = t ? t.start : today();
+  $('#tEnd').value = t ? t.end : today();
+  $('#tHidden').checked = t ? !!t.hidden : true;
+  $('#tDelete').hidden = !t; $('#tDelNote').hidden = !t;
+  $('#tDelete').classList.remove('arm'); $('#tDelete').textContent = 'Delete trip';
+  $('#tripSheet').hidden = false; document.body.classList.add('lock');
+  if(!t) $('#tName').focus();
+}
+function closeTrip(){ $('#tripSheet').hidden = true; document.body.classList.remove('lock'); editingTrip = null; }
+function saveTrip(){
+  const name = $('#tName').value.trim().slice(0, 40) || 'Trip';
+  let start = $('#tStart').value, end = $('#tEnd').value;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)){ shake('#tStart'); return; }
+  if(end < start){ const s = start; start = end; end = s; }
+  const hidden = $('#tHidden').checked;
+  let id = editingTrip;
+  if(id){ Object.assign(tripById(id), {name, start, end, hidden}); }
+  else { id = uid(); S.trips.push({id, name, start, end, hidden}); }
+  saveTrips(); S.view = id; closeTrip(); renderSpend(); toast('Trip saved');
 }
 
 /* ---------- Converter ---------- */
@@ -731,8 +928,9 @@ function renderBackup(){
 const csvCell = v => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 function toCSV(){
   const rows = [...S.expenses].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.created || 0) - (b.created || 0))
-    .map(e => { const r = recOf(e); return [e.id, e.date, e.category, e.amount, e.currency, (+e.sgd).toFixed(4), e.note, e.recurId || '', e.recurId ? (r && !r.endDate ? 1 : 0) : '', r ? r.skips.join(';') : ''].map(csvCell).join(','); });
-  return ['id,date,category,amount,currency,sgd,note,recur_id,recur_active,recur_skipped', ...rows].join('\n');
+    .map(e => { const r = recOf(e), tp = tripOf(e); return [e.id, e.date, e.category, e.amount, e.currency, (+e.sgd).toFixed(4), e.note, e.recurId || '', e.recurId ? (r && !r.endDate ? 1 : 0) : '', r ? r.skips.join(';') : '',
+      e.trip === '' ? 'none' : (tp ? tp.id : ''), tp ? tp.name : '', tp ? tp.start : '', tp ? tp.end : '', tp ? (tp.hidden ? 1 : 0) : ''].map(csvCell).join(','); });
+  return ['id,date,category,amount,currency,sgd,note,recur_id,recur_active,recur_skipped,trip_id,trip_name,trip_start,trip_end,trip_separate', ...rows].join('\n');
 }
 let dlCap; // claude.ai download bridge, when the page runs there
 async function getDownloads(){
@@ -802,6 +1000,13 @@ function importCSV(text){
       g('recur_skipped').split(';').forEach(s => { if(/^\d{4}-\d{2}$/.test(s)) ri.skips.add(s); });
       if(date >= ri.last){ ri.last = date; ri.active = g('recur_active') === '1'; }
     }
+    const tid = g('trip_id');
+    if(tid === 'none') entry.trip = '';
+    else if(tid){
+      entry.trip = tid;
+      if(!S.trips.some(t => t.id === tid) && /^\d{4}-\d{2}-\d{2}$/.test(g('trip_start')))
+        S.trips.push({id: tid, name: g('trip_name').slice(0, 40) || 'Trip', start: g('trip_start'), end: g('trip_end'), hidden: g('trip_separate') !== '0'});
+    }
     map.set(id, entry);
     n++;
   });
@@ -816,7 +1021,7 @@ function importCSV(text){
     recInfo[rid].skips.forEach(s => { if(!skips.includes(s)) skips.push(s); });
     S.recurring.push({id: rid, amount: last.amount, currency: last.currency, category: last.category, note: last.note, day: +last.date.slice(8,10), start, endDate: recInfo[rid].active ? null : last.date, skips});
   });
-  saveRec(); runRecurring(); persist();
+  saveRec(); saveTrips(); runRecurring(); persist();
   return n;
 }
 
@@ -886,13 +1091,41 @@ $('#list').addEventListener('click', e => {
 });
 
 $('#fab').addEventListener('click', () => openSheet(null));
+$('#scopes').addEventListener('click', e => {
+  const b = e.target.closest('[data-scope]'); if(!b) return;
+  if(b.dataset.scope === 'new'){ openTrip(null); return; }
+  S.view = b.dataset.scope; renderSpend(); window.scrollTo(0, 0);
+});
+$('#tripNote').addEventListener('click', e => {
+  const b = e.target.closest('[data-scope]'); if(!b) return;
+  S.view = b.dataset.scope; renderSpend(); window.scrollTo(0, 0);
+});
+$('#delta').addEventListener('click', e => { if(e.target.closest('#editTrip')) openTrip(tripById(S.view)); });
+$('#fQuick').addEventListener('click', e => {
+  const b = e.target.closest('.qchip'); if(!b) return;
+  const p = $('#fQuick')._picks[+b.dataset.i]; if(!p) return;
+  const x = p.e;
+  $('#fAmount').value = String(x.amount);
+  setFCur(x.currency); setFCat(x.category);
+  $('#fNote').value = x.note || '';
+  updHint();
+});
+$('#fTrip').addEventListener('change', () => { S.tripTouched = true; });
+$('#tBackdrop').addEventListener('click', closeTrip);
+$('#closeTrip').addEventListener('click', closeTrip);
+$('#tSave').addEventListener('click', saveTrip);
+$('#tDelete').addEventListener('click', () => armButton($('#tDelete'), 'Tap again to delete', 'Delete trip', () => {
+  S.trips = S.trips.filter(t => t.id !== editingTrip);
+  S.expenses.forEach(x => { if(x.trip === editingTrip) delete x.trip; });
+  saveTrips(); persist(); S.view = 'month'; closeTrip(); renderSpend(); toast('Trip deleted. Expenses kept.');
+}));
 $('#backdrop').addEventListener('click', closeSheet);
 $('#closeSheet').addEventListener('click', closeSheet);
 $('#fCur').addEventListener('click', e => { const b = e.target.closest('button'); if(b) setFCur(b.dataset.c); });
 $('#fCat').addEventListener('click', e => { const b = e.target.closest('.cat'); if(b) setFCat(b.dataset.c); });
 $('#fAmount').addEventListener('input', updHint);
 $('#fRepeat').addEventListener('change', () => { S.repeatTouched = true; });
-$('#fDate').addEventListener('change', updRepeatSub);
+$('#fDate').addEventListener('change', () => { updRepeatSub(); updTripRow(); });
 $('#recList').addEventListener('click', e => {
   const b = e.target.closest('.stop'); if(!b) return;
   armButton(b, 'Tap to confirm', 'Stop', () => {
@@ -909,7 +1142,11 @@ $('#fDelete').addEventListener('click', () => armButton($('#fDelete'), 'Tap agai
   S.expenses = S.expenses.filter(x => x.id !== S.editing); persist(); closeSheet(); renderSpend();
   toast(r && !r.endDate ? 'Deleted for this month only' : 'Expense deleted');
 }));
-document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Escape') return;
+  if(!$('#sheet').hidden) closeSheet();
+  else if(!$('#tripSheet').hidden) closeTrip();
+});
 
 $('#cCurSeg').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.cCur = b.dataset.c; renderConv(); });
 $('#cAmount').addEventListener('input', renderConv);
@@ -926,7 +1163,7 @@ $('#importFile').addEventListener('change', async e => {
   e.target.value = '';
 });
 $('#clearBtn').addEventListener('click', () => armButton($('#clearBtn'), 'Tap again to delete everything', 'Delete all data', () => {
-  S.expenses = []; S.recurring = []; persist(); saveRec(); renderSpend(); renderBackup(); toast('All data deleted');
+  S.expenses = []; S.recurring = []; S.trips = []; S.view = 'month'; persist(); saveRec(); saveTrips(); renderSpend(); renderBackup(); toast('All data deleted');
 }));
 
 /* ---------- Start ---------- */
